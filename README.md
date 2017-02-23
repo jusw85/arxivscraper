@@ -113,6 +113,7 @@ Technically, only the uri is required for this table.
 New records are converted to JSON using GSON, then output to file://, although output protocol can/should change.
 
 Pruning the SQLite database for old records can be done as follows:
+
     #!/bin/bash
     echo "DELETE FROM arxiv_raw WHERE strftime('%Y-%m-%d %H:%M:%f',ts) <= strftime('%Y-%m-%d %H:%M:%f','2017-01-01 12:00:00');"\
     | sqlite3 db/db.sqlite
