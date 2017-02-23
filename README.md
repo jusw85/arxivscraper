@@ -82,7 +82,41 @@ Create a named pipe, and pipe output to destination
     # Terminal 2
     $ nc -lu 50001
     
+
+### Technical Notes
+
+On each invocation, the scraper will GET records from Arxiv using the following sample URL:
+
+    http://export.arxiv.org/api/query?sortBy=lastUpdatedDate&sortOrder=descending&max_results={config.max_results}&search_query={config.categories}
     
+{config.categories} is a concatenation of all categories in https://arxiv.org/help/api/user-manual#subject_classifications; it's the only way AFAIK to get all latest documents from the API. The concatenated string looks like `search_query=cat:stat.AP OR cat:stat.CO OR cat:stat.ML OR ...`
+
+The response is an Atom feed; it's parsed and persisted in a SQLite database.
+
+Columns are:
+
+Column | Description
+--- | ---
+id | Auto generated UUID; Surrogate key
+ts | Received timestamp
+uri | Arxiv ID
+raw | Blob of content
+
+uri is used to determine uniqueness. Records whose uri exists are considered duplicates, otherwise they are considered new.
+
+This has the following implications:
+* Updated records with similar uri are not updated
+* Updated records with different uri are inserted again i.e. duplicates
+
+Technically, only the uri is required for this table.
+
+New records are converted to JSON using GSON, then output to file://, although output protocol can/should change.
+
+Pruning the SQLite database for old records can be done as follows:
+    #!/bin/bash
+    echo "DELETE FROM arxiv_raw WHERE strftime('%Y-%m-%d %H:%M:%f',ts) <= strftime('%Y-%m-%d %H:%M:%f','2017-01-01 12:00:00');"\
+    | sqlite3 db/db.sqlite
+
 ### Design Notes
 
 For my personal reference in the future. Can be ignored.
