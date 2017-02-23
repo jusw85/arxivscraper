@@ -10,6 +10,7 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import edu.soton.ecs.arxivscraper.util.IniWrapper;
+import edu.soton.ecs.arxivscraper.util.MqWrapper;
 import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -28,6 +29,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jdom2.Element;
 
+import javax.jms.ConnectionFactory;
+import javax.naming.Context;
+import javax.naming.InitialContext;
 import javax.net.ssl.SSLException;
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +43,7 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,11 +68,18 @@ public class ArxivScraper {
         String maxResults = IniWrapper.optString("Arxiv", "max_results", "10");
         String categories = IniWrapper.optString("Arxiv", "categories", "");
 
-        String outFile = IniWrapper.optString("Output", "out_file", "output");
+        boolean isOutFileEnabled = IniWrapper.optBoolean("Output_File", "enabled", false);
+        String outFile = IniWrapper.optString("Output_File", "out_file", "output");
+
+        boolean isAmqpEnabled = IniWrapper.optBoolean("Output_AMQP", "enabled", false);
+        String amqpConnectionUrl = IniWrapper.getString("Output_AMQP", "connection_url");
+        String amqpQueueName = IniWrapper.getString("Output_AMQP", "queue_name");
+        String amqpClientId = IniWrapper.getString("Output_AMQP", "client_id");
 
         ArxivScraper scraper = new ArxivScraper(url, maxResults, categories);
         List<ArxivEntry> arxivEntries = scraper.scrape();
 
+        List<String> newArxivEntriesJson = new ArrayList<>();
         try (ArxivDbWrapper dbwrapper = new ArxivDbWrapper(dbFile, "arxiv_raw");) {
             dbwrapper.initalize();
             int numInserted = 0;
@@ -75,14 +87,33 @@ public class ArxivScraper {
                 String id = arxivEntry.getId();
                 if (!dbwrapper.isExtracted(id)) {
                     LOGGER.debug("Inserting {}", id);
+                    newArxivEntriesJson.add(new Gson().toJson(arxivEntry));
                     numInserted += dbwrapper.defaultInsert(id, arxivEntry);
-
-                    Gson gson = new Gson();
-                    String json = gson.toJson(arxivEntry);
-                    FileUtils.writeStringToFile(new File("output"), json, StandardCharsets.UTF_8, true);
                 }
             }
             LOGGER.info("Inserted {} new entries", numInserted);
+        }
+
+        if (isOutFileEnabled) {
+            for (String json : newArxivEntriesJson) {
+                FileUtils.writeStringToFile(new File(outFile), json + System.lineSeparator(), StandardCharsets.UTF_8, true);
+            }
+        }
+
+        if (isAmqpEnabled) {
+            Hashtable<Object, Object> env = new Hashtable<>();
+            env.put(Context.INITIAL_CONTEXT_FACTORY, "org.apache.qpid.jms.jndi.JmsInitialContextFactory");
+            env.put("connectionfactory.activemqFactory", amqpConnectionUrl);
+            Context context = new InitialContext(env);
+
+            ConnectionFactory factory = (ConnectionFactory) context.lookup("activemqFactory");
+            try (MqWrapper mqWrapper = new MqWrapper(factory, amqpClientId, amqpQueueName, false);) {
+                for (String json : newArxivEntriesJson) {
+                    mqWrapper.sendTextMessage(json);
+                }
+            } catch (Exception e) {
+                LOGGER.error(e);
+            }
         }
     }
 
