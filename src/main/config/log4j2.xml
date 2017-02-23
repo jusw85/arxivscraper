@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TRACE > DEBUG > INFO > WARN > ERROR > FATAL -->
+<Configuration status="WARN">
+    <Appenders>
+        <RollingFile name="debuglog" fileName="./logs/debug.log" filePattern="./logs/debug.log.%i">
+            <PatternLayout pattern="[%-5p] [%d{dd/MM/yy HH:mm a}] - %m%n"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="2 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="min" max="5"/>
+        </RollingFile>
+        <RollingFile name="errorlog" fileName="./logs/error.log" filePattern="./logs/error.log.%i">
+            <PatternLayout pattern="[%-5p] [%d{dd/MM/yy HH:mm a}] - %m%n"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="2 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy fileIndex="min" max="5"/>
+        </RollingFile>
+        <Console name="stdout" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%-5p] [%d{dd/MM/yy HH:mm a}] - %m%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="org.apache.http" level="info" additivity="false" includeLocation="true">
+            <AppenderRef ref="stdout"/>
+            <AppenderRef ref="debuglog"/>
+            <AppenderRef ref="errorlog" level="warn"/>
+        </Logger>
+        <Root level="info">
+            <AppenderRef ref="stdout"/>
+            <AppenderRef ref="debuglog"/>
+            <AppenderRef ref="errorlog" level="warn"/>
+        </Root>
+    </Loggers>
+</Configuration>

@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "DROP TABLE IF EXISTS arxiv_raw;"\
+| sqlite3 db/db.sqlite

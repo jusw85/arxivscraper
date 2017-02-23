@@ -1,0 +1,3 @@
+#!/bin/bash
+cd "$(dirname "$0")"
+java -server -cp "./lib/*" -Dapp.configurationFile="./config/config.ini" -Dlog4j.configurationFile="./config/log4j2.xml" -DLog4jContextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector edu.soton.ecs.arxivscraper.ArxivScraper
