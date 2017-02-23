@@ -81,3 +81,30 @@ Create a named pipe, and pipe output to destination
     
     # Terminal 2
     $ nc -lu 50001
+    
+    
+### Design Notes
+
+For my personal reference in the future. Can be ignored.
+
+#### OS Scheduling vs Application Scheduling
+
+OS scheduling e.g. *cron, Windows scheduler
+
+Application scheduling e.g. Quartz scheduler, Obsidian scheduler
+
+OS scheduling
+* Each invocation is independent
+* State between invocations persisted to disk
+* OS scheduler likely to be reliable
+* Once off application bugs/crashes will not interrupt schedule
+* Relatively easy to change schedule frequency in production
+
+Application scheduling
+* Scheduler is integrated into application
+* Application runs persistently in the background
+* Memory is held by the process
+* Bugs possibly introduced during scheduler integration
+* Crashes might interrupt schedule
+* Relatively difficult to change schedule during runtime
+
